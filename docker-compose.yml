@@ -1,0 +1,68 @@
+name: ssh-certs-poc
+
+# One shared volume plays the role of "out-of-band CA distribution channel".
+# In real life the CA public keys are pushed by config management (Puppet,
+# Ansible, cloud-init, MDM, ...); here a docker volume stands in for that.
+services:
+
+  # The Certificate Authority. Runs once, mints the CA key pair, issues and
+  # signs a host certificate for every host and a user certificate for every
+  # demo user, then exits. Nothing else starts until it has finished
+  # successfully (see `depends_on: condition: service_completed_successfully`
+  # below) - that ordering itself is part of the illustration: certificates
+  # must exist before anyone can trust anything.
+  ca:
+    build: ./ca
+    container_name: ca
+    volumes:
+      - shared:/shared
+    restart: "no"
+
+  # web01 only trusts the "ops" principal - that's who is allowed to log in.
+  web01:
+    build: ./hosts
+    container_name: web01
+    hostname: web01
+    environment:
+      HOST_NAME: web01
+      ALLOWED_PRINCIPAL: ops
+    volumes:
+      - shared:/shared
+    depends_on:
+      ca:
+        condition: service_completed_successfully
+
+  # db01 only trusts the "dba" principal.
+  db01:
+    build: ./hosts
+    container_name: db01
+    hostname: db01
+    environment:
+      HOST_NAME: db01
+      ALLOWED_PRINCIPAL: dba
+    volumes:
+      - shared:/shared
+    depends_on:
+      ca:
+        condition: service_completed_successfully
+
+  # A plain SSH client. No server-specific setup: it just trusts the CA and
+  # holds a couple of user certificates to try out.
+  client:
+    build: ./client
+    container_name: client
+    hostname: client
+    volumes:
+      - shared:/shared
+    depends_on:
+      ca:
+        condition: service_completed_successfully
+      web01:
+        condition: service_started
+      db01:
+        condition: service_started
+    stdin_open: true
+    tty: true
+
+volumes:
+  shared:
