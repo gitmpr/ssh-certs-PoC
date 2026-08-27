@@ -229,3 +229,18 @@ separate hosts, or trying one of the signing services in
 This is a private, educational proof of concept. Keys/certs are generated
 fresh on every `docker compose up`, live only in a local Docker volume, and
 are not meant to protect anything real.
+
+## Next step to explore
+
+The `revocation` branch builds out two extensions flagged as future work in
+[docs/production.md](docs/production.md):
+
+- **Revocation.** Wires up a real Key Revocation List (`RevokedKeys`) and a
+  `revoke.sh` script, so an issued-but-unexpired certificate can be killed
+  on demand and every host rejects it on its very next connection - no
+  host restart, no per-host edit.
+- **A raw-keys comparison stack.** A parallel `legacy/` environment using
+  plain `authorized_keys`/TOFU `known_hosts` instead of certificates, with
+  a guided script that rotates a host key and grants/revokes user access
+  the old way, so the operational pain the CA model avoids is something
+  you watch happen rather than take on faith.
