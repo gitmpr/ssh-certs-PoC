@@ -90,6 +90,12 @@ decisions consistent, but it does mean the CA key deserves real scrutiny -
 see [docs/production.md](docs/production.md) for how that's handled outside
 a demo repo.
 
+The diagram above shows *what* each side trusts. For exactly *how* that
+trust gets checked, in protocol order, both directions, see
+[docs/validation.md](docs/validation.md) - including why a host
+certificate's principal is not a DNS name, and what that means if you're
+running on static `/etc/hosts` entries instead of real DNS.
+
 ## What's actually running
 
 ```mermaid
@@ -175,6 +181,7 @@ ca/                  generates the CA key, issues + signs every certificate
 hosts/               generic sshd image, parameterised by HOST_NAME / ALLOWED_PRINCIPAL
 client/              ssh client image + entrypoint.sh + demo.sh
 docs/
+  validation.md       how the client/server validation actually works, protocol-by-protocol
   cheatsheet.md       every ssh-keygen flag used here, explained
   production.md       what's simplified for a demo, and what real CAs do instead
 ```
@@ -207,6 +214,9 @@ separate hosts, or trying one of the signing services in
 
 ## Further reading
 
+- [docs/validation.md](docs/validation.md) - exactly how the client
+  validates the server and the server validates the client, in protocol
+  order, and whether certificates depend on DNS (they don't).
 - [docs/cheatsheet.md](docs/cheatsheet.md) - every `ssh-keygen` flag used
   in this repo, explained.
 - [docs/production.md](docs/production.md) - what's simplified here, and
