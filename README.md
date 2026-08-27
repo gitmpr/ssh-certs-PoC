@@ -230,17 +230,14 @@ This is a private, educational proof of concept. Keys/certs are generated
 fresh on every `docker compose up`, live only in a local Docker volume, and
 are not meant to protect anything real.
 
-## Next step to explore
+## Chapters
 
-The `revocation` branch builds out two extensions flagged as future work in
-[docs/production.md](docs/production.md):
+This repo uses branches as chapters, each one building on the last:
 
-- **Revocation.** Wires up a real Key Revocation List (`RevokedKeys`) and a
-  `revoke.sh` script, so an issued-but-unexpired certificate can be killed
-  on demand and every host rejects it on its very next connection - no
-  host restart, no per-host edit.
-- **A raw-keys comparison stack.** A parallel `legacy/` environment using
-  plain `authorized_keys`/TOFU `known_hosts` instead of certificates, with
-  a guided script that rotates a host key and grants/revokes user access
-  the old way, so the operational pain the CA model avoids is something
-  you watch happen rather than take on faith.
+| Chapter | Branch | Adds |
+|---|---|---|
+| 0 | [main](https://github.com/gitmpr/ssh-certs-PoC/tree/main) (this branch) | CA, host certificates, user certificates, principals |
+| 1 | [1_revocation](https://github.com/gitmpr/ssh-certs-PoC/tree/1_revocation) | Key revocation lists; a raw-keys comparison stack |
+| 2 | [2_short-lived_secrets](https://github.com/gitmpr/ssh-certs-PoC/tree/2_short-lived_secrets) | On-demand, short-lived certificate issuance; separate CAs per environment |
+
+up next: [**1_revocation**](https://github.com/gitmpr/ssh-certs-PoC/tree/1_revocation)
