@@ -3,15 +3,19 @@
 This repo simplifies things a working system would not. Worth being
 explicit about what's cut, and what real systems do instead.
 
-## What's simplified here
+## What earlier chapters simplified, and what addresses it
+
+| Simplified in `main` | Addressed in |
+|---|---|
+| Certificates issued once, up front, with a long fixed validity | This chapter - `ca/issue.sh` issues on demand, short-lived (see `scripts/short-lived-demo.sh`). alice/carol still get the original pre-issued 8h certs, deliberately left alone, for contrast. |
+| Revocation is a manual `revoke.sh <user>` call | [`2_revocation`](https://github.com/gitmpr/ssh-certs-PoC/tree/2_revocation) - see `ca/revoke.sh` and `scripts/revoke-demo.sh` |
+
+## What's still simplified here
 
 | Here | In production |
 |---|---|
 | CA private key lives in a container, generated on `docker compose up` | CA key lives offline, in an HSM, or behind a signing API that never exposes the key itself |
-| Certificates issued once, up front | Issued on demand, per session, by a signing service in front of the CA |
-| 8 hour user cert validity, chosen once | Often much shorter (minutes), reissued transparently as part of login |
 | Two static principals (`ops`, `dba`) | Principals typically minted from an identity provider (SSO group membership, IAM role, etc.) at issuance time |
-| Revocation is a manual `revoke.sh <user>` call (see `scripts/revoke-demo.sh`) | KRL updates pushed automatically by config management, or short-lived certs used specifically so manual revocation is rarely needed |
 | One CA signs both hosts and users | Often two separate CAs (a host CA and a user CA), so compromising one doesn't grant the other's trust |
 
 ## Real signing services
