@@ -1,0 +1,50 @@
+name: ssh-certs-poc-gssapi
+
+# A non-certificate trust model, for contrast against every other chapter.
+# The KDC is long-running (Kerberos needs it reachable at connection time,
+# not just at setup time) - the first service in this repo that isn't
+# one-shot or plain sshd. web01/client are Debian, not Alpine like
+# everywhere else - see gssapi/web01/Dockerfile for why.
+#
+# Build context is this directory (not each service's own subdirectory,
+# unlike every other stack) so kdc/, web01/, and client/ can all COPY the
+# same krb5.conf instead of three copies drifting apart.
+services:
+
+  kdc:
+    build:
+      context: .
+      dockerfile: kdc/Dockerfile
+    container_name: kdc
+    hostname: kdc
+    volumes:
+      - shared:/shared
+
+  web01:
+    build:
+      context: .
+      dockerfile: web01/Dockerfile
+    container_name: web01
+    hostname: web01
+    volumes:
+      - shared:/shared
+    depends_on:
+      kdc:
+        condition: service_started
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: client
+    hostname: client
+    volumes:
+      - shared:/shared
+    depends_on:
+      kdc:
+        condition: service_started
+    stdin_open: true
+    tty: true
+
+volumes:
+  shared:

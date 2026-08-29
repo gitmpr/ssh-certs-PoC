@@ -1,61 +1,53 @@
-# ssh-certs-PoC — Chapter 4: Per-Environment CAs & an Intermediate-Key Hierarchy
+# ssh-certs-PoC — Chapter 5: GSSAPI (Kerberos)
 
-> Continues from [**3_short-lived_secrets**](https://github.com/gitmpr/ssh-certs-PoC/tree/3_short-lived_secrets) and everything before it. All prior chapters are assumed knowledge here.
+> Continues from [**4_environment_cas**](https://github.com/gitmpr/ssh-certs-PoC/tree/4_environment_cas) and everything before it. All prior chapters are assumed knowledge here.
 
-Chapters 2 and 3 were *lifecycle* refinements to chapter 0's single CA -
-kill a certificate early, or don't need to. This chapter is a *topology*
-change: more than one CA, and a hierarchy above them.
+Every chapter so far has been a variation on one idea: a CA signs
+something, and that signature can be checked completely offline. This
+chapter steps outside that idea entirely, for contrast. GSSAPI - in
+practice, almost always Kerberos - solves the same underlying problem
+("nobody wants a long-lived secret sitting on every host") with a
+structurally different mechanism: a **centrally trusted, always-reachable
+KDC** issuing short-lived tickets, instead of a CA that can go offline the
+moment it's done signing.
 
-## Separate CAs per environment, plus a root
+## GSSAPI/Kerberos SSH auth
 
-`environments/` is a third, self-contained stack: two environments
-(`staging`, `prod`), each with its own **intermediate CA**, both minted by
-a single **root CA** that mints them, signs a delegation certificate over
-each one's public key, and then goes cold - never used again.
+`gssapi/` is a fourth, self-contained stack: a KDC, one host (`web01`,
+GSSAPI-only - `PubkeyAuthentication`/`PasswordAuthentication` are both
+off), and a client.
 
 ```sh
-./scripts/environment-cas-demo.sh
+./scripts/gssapi-demo.sh
 ```
 
-It reuses chapter 3's on-demand issuance (`ca/issue.sh`, now one instance
-per environment) to get alice a staging certificate, uses it successfully,
-shows the *exact same* certificate rejected against `prod-web01` (not
-because anything about it is wrong - it's simply signed by a CA that host
-has never heard of), issues a prod certificate too from alice's same
-underlying key pair, and finally verifies - by comparing fingerprints, not
-by asserting it - that root, not the intermediate itself, actually signed
-the delegation certificate backing each environment's CA.
+It tries `alice@web01` with no ticket (denied), runs `kinit` to get one
+(a password prompt, piped non-interactively), connects successfully - no
+key, no certificate involved anywhere - destroys the ticket with
+`kdestroy`, and shows the connection denied again. See
+[docs/gssapi.md](docs/gssapi.md) for the command reference and a
+head-to-head comparison table against every certificate chapter.
 
-**Worth being precise about**: SSH has no X.509-style certificate chain
-validation. `TrustedUserCAKeys`/`@cert-authority` only ever list flat,
-directly-trusted keys - nothing in sshd or ssh walks a chain up to a root
-it trusts. The delegation certificate `root-ca/` produces is an *audit*
-record - proof that root approved a given intermediate - checked here by
-hand (`ssh-keygen -Lf`, then comparing the delegation cert's `Signing CA`
-fingerprint against root's own), not something any SSH software enforces
-automatically. See [`environments/root-ca/entrypoint.sh`](environments/root-ca/entrypoint.sh)
-and [docs/production.md](docs/production.md) for the real-world version of
-this pattern - root CAs kept offline/in an HSM, intermediates doing the
-daily signing.
-
-This is a second, independent trust axis from `AuthorizedPrincipalsFile`
-(chapters 0-3): there, a valid certificate could still be refused for the
-*wrong role*. Here, a valid certificate for the *right* role is refused
-for belonging to the *wrong environment*.
+**Worth being explicit about**: this chapter uses **Debian**, not Alpine
+like everywhere else in this repo. Verified directly before building
+anything: Alpine's `openssh-server` has no GSSAPI support compiled in at
+all (`sshd -t` rejects `GSSAPIAuthentication` outright as an "Unsupported
+option"); Debian's does. Also unlike every other stack here, the KDC is a
+**long-running service**, not a one-shot setup container - Kerberos needs
+its issuer reachable at connection time, which is the single biggest
+structural difference from the certificate model.
 
 ## New in this chapter
 
 ```
-environments/                staging + prod, each with its own intermediate CA:
-                              docker-compose.yml, root-ca/ (mints + delegates,
-                              then goes cold), ca/ (per-environment, now consumes
-                              root-ca's keys instead of generating its own),
-                              hosts/, client/
-scripts/environment-cas-demo.sh   guided walkthrough: issuance, isolation, delegation
-docs/cheatsheet.md            (updated) CertificateFile; reissuing certs against a
-                               shared key pair
-docs/production.md            (updated) environment-isolation row now points here;
-                               new "Bastion and jump hosts" section
+gssapi/                 KDC + GSSAPI-only host + client, its own docker-compose.yml
+  krb5.conf              shared Kerberos client config (realm SSHCERTS.LOCAL)
+  kdc/                   long-running krb5kdc; mints alice's password-based
+                          principal and web01's keytab-based host principal
+  web01/                 Debian sshd, GSSAPI-only, no pubkey/password auth at all
+  client/                Debian + krb5-user + openssh-client
+scripts/gssapi-demo.sh  guided walkthrough (run from the host machine)
+docs/gssapi.md           kinit/klist/kdestroy/ktadd reference + comparison table
 ```
 
 ## Chapters
@@ -68,7 +60,38 @@ This repo uses branches as chapters, each one building on the last:
 | 1 | [1_raw_keys](https://github.com/gitmpr/ssh-certs-PoC/tree/1_raw_keys) | Raw-keys comparison stack (no CA) - the "old way," right after the concept |
 | 2 | [2_revocation](https://github.com/gitmpr/ssh-certs-PoC/tree/2_revocation) | Key revocation lists |
 | 3 | [3_short-lived_secrets](https://github.com/gitmpr/ssh-certs-PoC/tree/3_short-lived_secrets) | On-demand, short-lived certificate issuance (single CA) |
-| 4 | [4_environment_cas](https://github.com/gitmpr/ssh-certs-PoC/tree/4_environment_cas) (this branch) | Separate CA per environment, plus a root/intermediate signing-key hierarchy |
-| 5 | [5_gssapi](https://github.com/gitmpr/ssh-certs-PoC/tree/5_gssapi) | GSSAPI/Kerberos SSH auth - a non-certificate trust model. Ends with Further Reading & Resources. |
+| 4 | [4_environment_cas](https://github.com/gitmpr/ssh-certs-PoC/tree/4_environment_cas) | Separate CA per environment, plus a root/intermediate signing-key hierarchy |
+| 5 | [5_gssapi](https://github.com/gitmpr/ssh-certs-PoC/tree/5_gssapi) (this branch) | GSSAPI/Kerberos SSH auth - a non-certificate trust model |
 
-up next: [**5_gssapi**](https://github.com/gitmpr/ssh-certs-PoC/tree/5_gssapi)
+This is the newest chapter - the book ends here, for now.
+
+## Further Reading & Resources
+
+- [docs/validation.md](docs/validation.md) - exactly how the client
+  validates the server and the server validates the client, in protocol
+  order (chapter 0).
+- [docs/cheatsheet.md](docs/cheatsheet.md) - every `ssh-keygen` flag used
+  across the certificate chapters, explained.
+- [docs/comparison.md](docs/comparison.md) - certificates vs. raw keys,
+  failure mode by failure mode (chapter 1).
+- [docs/gssapi.md](docs/gssapi.md) - the Kerberos/GSSAPI command
+  reference and comparison table (this chapter).
+- [docs/production.md](docs/production.md) - what's simplified across
+  this whole repo, and what real-world CA setups (step-ca, Vault,
+  Teleport, BLESS) do instead.
+- ["If You're Not Using SSH Certificates You're Doing SSH Wrong"](https://www.youtube.com/watch?v=P-Yq_6Da1b8) -
+  Mike Malone, BSidesSF 2020. The talk this whole repo is, in spirit, an
+  extended illustration of.
+- [The companion blog post](https://smallstep.com/blog/use-ssh-certificates/) -
+  same title and author, Smallstep. Covers the same argument in text,
+  plus a walkthrough of `step-ca`/`step ssh`.
+- [OpenSSH `ssh-keygen(1)`](https://man.openbsd.org/ssh-keygen.1) - the
+  `CERTIFICATES` section is the primary source for chapters 0-4.
+- [MIT Kerberos documentation](https://web.mit.edu/kerberos/krb5-latest/doc/)
+  - the primary source for this chapter.
+
+## Scope
+
+This is a private, educational proof of concept. Keys, certificates, and
+Kerberos realms are generated fresh on every `docker compose up`, live
+only in local Docker volumes, and are not meant to protect anything real.
