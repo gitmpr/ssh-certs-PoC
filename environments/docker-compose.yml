@@ -1,0 +1,75 @@
+name: ssh-certs-poc-environments
+
+# Two environments, two independent intermediate CAs, both minted by one
+# root CA that then goes cold (root-ca/ runs once and never again).
+# staging-web01 and prod-web01 both use the local account "ops", both
+# would accept a certificate carrying principal "ops" - but each only
+# trusts its OWN environment's intermediate CA (TrustedUserCAKeys), so a
+# certificate's principal being right is not enough on its own. This is a
+# second, independent trust axis from the per-account
+# AuthorizedPrincipalsFile axis demonstrated on main/1_raw_keys.
+services:
+
+  root-ca:
+    build: ./root-ca
+    container_name: root-ca
+    volumes:
+      - shared:/shared
+    restart: "no"
+
+  ca:
+    build: ./ca
+    container_name: ca
+    volumes:
+      - shared:/shared
+    restart: "no"
+    depends_on:
+      root-ca:
+        condition: service_completed_successfully
+
+  staging-web01:
+    build: ./hosts
+    container_name: staging-web01
+    hostname: staging-web01
+    environment:
+      ENV: staging
+      HOST_NAME: staging-web01
+      ALLOWED_PRINCIPAL: ops
+    volumes:
+      - shared:/shared
+    depends_on:
+      ca:
+        condition: service_completed_successfully
+
+  prod-web01:
+    build: ./hosts
+    container_name: prod-web01
+    hostname: prod-web01
+    environment:
+      ENV: prod
+      HOST_NAME: prod-web01
+      ALLOWED_PRINCIPAL: ops
+    volumes:
+      - shared:/shared
+    depends_on:
+      ca:
+        condition: service_completed_successfully
+
+  client:
+    build: ./client
+    container_name: client
+    hostname: client
+    volumes:
+      - shared:/shared
+    depends_on:
+      ca:
+        condition: service_completed_successfully
+      staging-web01:
+        condition: service_started
+      prod-web01:
+        condition: service_started
+    stdin_open: true
+    tty: true
+
+volumes:
+  shared:

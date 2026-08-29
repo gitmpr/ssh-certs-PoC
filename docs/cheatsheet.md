@@ -66,6 +66,32 @@ On a **client**, to accept host certificates:
 echo "@cert-authority * $(cat ca_key.pub)" >> ~/.ssh/known_hosts
 ```
 `*` can be narrowed to a hostname pattern, e.g. `*.internal.example.com`.
+Multiple `@cert-authority` lines can coexist (e.g. one per environment) -
+ssh matches whichever CA actually signed the certificate a host presents.
+
+## Reissuing a certificate against the same key pair
+
+A key pair is inert and long-lived; a certificate wrapping it is cheap to
+reissue with a fresh, short validity window (chapter 3's `ca/issue.sh`).
+Since `ssh-keygen -s` always names its output
+`<pubkey-file-minus-.pub>-cert.pub`, issuing certificates for the same key
+from more than one CA (chapter 4: one per environment) means signing
+distinctly-named copies of the public key rather than the original, so an
+older still-valid certificate isn't silently overwritten:
+
+```sh
+cp id_ed25519.pub id_ed25519.staging.pub
+ssh-keygen -s staging_ca_key -n ops -V +2m id_ed25519.staging.pub
+# -> id_ed25519.staging-cert.pub
+```
+
+`ssh -i` only auto-loads a cert named exactly `<identity>-cert.pub`, so to
+pick a specific one explicitly (e.g. which environment's certificate to
+present), point at it directly instead of relying on that convention:
+
+```sh
+ssh -o CertificateFile=id_ed25519.staging-cert.pub -i id_ed25519 ops@host
+```
 
 ## Revocation (KRL)
 
