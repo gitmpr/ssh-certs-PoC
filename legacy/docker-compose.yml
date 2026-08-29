@@ -1,0 +1,39 @@
+name: ssh-certs-poc-legacy
+
+# The classic model, for comparison against the CA-based stack one level
+# up. Deliberately has no shared volume playing CA distribution channel -
+# there is no CA here. Every host is authorized and trusted independently,
+# which is exactly the point: scripts/legacy-demo.sh has to touch each
+# host separately, the same way a real admin would.
+#
+# Each host's /home is its own named volume so authorized_keys survives a
+# `--force-recreate` (simulating a config-managed redeploy), while /etc/ssh
+# host keys live in the container's own writable layer and regenerate from
+# scratch on recreate - just like a freshly (re)provisioned real host would
+# get a new host identity unless something explicitly restores the old one.
+services:
+
+  legacy-web01:
+    build: ./hosts
+    container_name: legacy-web01
+    hostname: legacy-web01
+    volumes:
+      - legacy-web01-home:/home
+
+  legacy-db01:
+    build: ./hosts
+    container_name: legacy-db01
+    hostname: legacy-db01
+    volumes:
+      - legacy-db01-home:/home
+
+  legacy-client:
+    build: ./client
+    container_name: legacy-client
+    hostname: legacy-client
+    stdin_open: true
+    tty: true
+
+volumes:
+  legacy-web01-home:
+  legacy-db01-home:
