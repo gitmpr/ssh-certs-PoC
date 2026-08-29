@@ -23,6 +23,12 @@
 #       as which local account. Only ALLOWED_PRINCIPAL gets an entry here,
 #       so a perfectly valid, CA-signed certificate for the wrong role is
 #       still refused.
+#
+#   RevokedKeys
+#       Points straight at the KRL on the shared volume rather than a local
+#       copy. sshd reads it fresh on every connection attempt, so a
+#       certificate revoked via ca/revoke.sh (see scripts/revoke-demo.sh)
+#       stops working here immediately - no restart, no redeploy.
 
 set -eu
 
@@ -52,6 +58,7 @@ HostKey /etc/ssh/ssh_host_ed25519_key
 HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
 TrustedUserCAKeys /etc/ssh/user_ca.pub
 AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u
+RevokedKeys $SHARED/ca/revoked.krl
 PubkeyAuthentication yes
 PasswordAuthentication no
 KbdInteractiveAuthentication no

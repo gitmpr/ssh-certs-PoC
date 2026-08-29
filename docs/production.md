@@ -11,7 +11,7 @@ explicit about what's cut, and what real systems do instead.
 | Certificates issued once, up front | Issued on demand, per session, by a signing service in front of the CA |
 | 8 hour user cert validity, chosen once | Often much shorter (minutes), reissued transparently as part of login |
 | Two static principals (`ops`, `dba`) | Principals typically minted from an identity provider (SSO group membership, IAM role, etc.) at issuance time |
-| No revocation list wired up | `RevokedKeys` (KRL) pushed by config management, or short-lived certs used specifically so revocation is rarely needed |
+| Revocation is a manual `revoke.sh <user>` call (see `scripts/revoke-demo.sh`) | KRL updates pushed automatically by config management, or short-lived certs used specifically so manual revocation is rarely needed |
 | One CA signs both hosts and users | Often two separate CAs (a host CA and a user CA), so compromising one doesn't grant the other's trust |
 
 ## Real signing services

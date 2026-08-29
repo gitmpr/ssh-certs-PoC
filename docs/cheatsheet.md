@@ -70,23 +70,38 @@ echo "@cert-authority * $(cat ca_key.pub)" >> ~/.ssh/known_hosts
 ## Revocation (KRL)
 
 Certificates expire on their own (`-V`), but if one needs to be killed
-early - a laptop stolen, a role retired - use a Key Revocation List:
+early - a laptop stolen, a role retired - use a Key Revocation List. This
+repo wires one up for real; see `ca/revoke.sh` and
+`scripts/revoke-demo.sh`.
+
+Every certificate this repo issues has serial 0, so revocation is by key
+ID (the `-I` string given at signing time, e.g. `user_carol`) rather than
+by serial number:
 
 ```sh
-# revoke by serial number (see `ssh-keygen -Lf cert` for the serial)
-ssh-keygen -kf revoked.krl -z 1 alice_key.pub
+# spec file: one "id:" or "serial:" line per identity to revoke
+echo "id: user_carol" > spec
 
-# or revoke a specific certificate's key ID
-ssh-keygen -kf revoked.krl -u -s ca_key.pub id_ed25519-cert.pub
+# first write: creates the KRL
+ssh-keygen -k -f revoked.krl -s ca_key.pub -z 1 spec
+
+# subsequent writes: -u updates the existing file, -z must increase
+ssh-keygen -k -f revoked.krl -u -s ca_key.pub -z 2 spec
 ```
 
-Then, on each host:
+Test whether a given certificate is in a KRL:
+```sh
+ssh-keygen -Qf revoked.krl id_ed25519-cert.pub
+```
+Note the exit code is the opposite of what you'd guess: **0** ("ok") means
+*not* revoked, **non-zero** ("REVOKED") means it is.
+
+On each host:
 ```
 # /etc/ssh/sshd_config
-RevokedKeys /etc/ssh/revoked.krl
+RevokedKeys /path/to/revoked.krl
 ```
-
-This PoC does not wire up a KRL by default (it would need a distribution
-mechanism, which is exactly the kind of infrastructure this repo is
-sidestepping) - see [production.md](production.md) for how real systems
-handle it.
+sshd re-reads that file on every connection attempt, so if the path points
+at something live (this repo points it straight at the shared volume - see
+`hosts/entrypoint.sh`), revocation takes effect immediately, with no host
+restart and no redistribution step.

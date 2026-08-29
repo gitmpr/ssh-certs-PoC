@@ -11,6 +11,8 @@
 #   2. creates a host key pair per host and signs it into a host certificate
 #   3. creates a user key pair per demo user and signs it into a user
 #      certificate, tagged with a "principal" (role) rather than a hostname
+#   4. initializes an empty key revocation list (KRL) that every host reads
+#      live off the shared volume - see revoke.sh for how it gets updated
 #
 # In production the CA private key would live offline, in an HSM, or behind
 # a signing service (Vault SSH secrets engine, step-ca, Teleport, netflix
@@ -90,6 +92,17 @@ sign_host db01
 
 sign_user alice ops
 sign_user carol dba
+
+echo "==> [4/4] key revocation list"
+if [ ! -f "$CA_DIR/revoked.krl" ]; then
+    empty_spec=$(mktemp)
+    : > "$empty_spec"
+    ssh-keygen -k -f "$CA_DIR/revoked.krl" -s "$CA_DIR/ca_key.pub" -z 0 "$empty_spec"
+    rm -f "$empty_spec"
+    echo 0 > "$CA_DIR/.krl_version"
+else
+    echo "    already exists, reusing"
+fi
 
 # Everything under $SHARED needs to be readable by the other containers.
 chmod -R a+rX "$SHARED"
