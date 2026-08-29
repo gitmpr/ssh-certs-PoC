@@ -212,17 +212,11 @@ setup, the natural next step is running the same images against actual
 separate hosts, or trying one of the signing services in
 [docs/production.md](docs/production.md).
 
-## Further reading
-
-- [docs/validation.md](docs/validation.md) - exactly how the client
-  validates the server and the server validates the client, in protocol
-  order, and whether certificates depend on DNS (they don't).
-- [docs/cheatsheet.md](docs/cheatsheet.md) - every `ssh-keygen` flag used
-  in this repo, explained.
-- [docs/production.md](docs/production.md) - what's simplified here, and
-  what real-world CA setups (step-ca, Vault, Teleport, BLESS) do instead.
-- [OpenSSH `ssh-keygen(1)`](https://man.openbsd.org/ssh-keygen.1) - the
-  `CERTIFICATES` section is the primary source for all of this.
+For the deeper mechanics of everything referenced above -
+[docs/validation.md](docs/validation.md), [docs/cheatsheet.md](docs/cheatsheet.md),
+[docs/production.md](docs/production.md) - see the links inline through
+this README, or the book's closing "Further Reading & Resources" section
+at the end of the last chapter.
 
 ## Scope
 
@@ -237,7 +231,10 @@ This repo uses branches as chapters, each one building on the last:
 | Chapter | Branch | Adds |
 |---|---|---|
 | 0 | [main](https://github.com/gitmpr/ssh-certs-PoC/tree/main) (this branch) | CA, host certificates, user certificates, principals |
-| 1 | [1_revocation](https://github.com/gitmpr/ssh-certs-PoC/tree/1_revocation) | Key revocation lists; a raw-keys comparison stack |
-| 2 | [2_short-lived_secrets](https://github.com/gitmpr/ssh-certs-PoC/tree/2_short-lived_secrets) | On-demand, short-lived certificate issuance; separate CAs per environment |
+| 1 | [1_raw_keys](https://github.com/gitmpr/ssh-certs-PoC/tree/1_raw_keys) | Raw-keys comparison stack (no CA) - the "old way," right after the concept |
+| 2 | [2_revocation](https://github.com/gitmpr/ssh-certs-PoC/tree/2_revocation) | Key revocation lists |
+| 3 | [3_short-lived_secrets](https://github.com/gitmpr/ssh-certs-PoC/tree/3_short-lived_secrets) | On-demand, short-lived certificate issuance (single CA) |
+| 4 | [4_environment_cas](https://github.com/gitmpr/ssh-certs-PoC/tree/4_environment_cas) | Separate CA per environment, plus a root/intermediate signing-key hierarchy |
+| 5 | [5_gssapi](https://github.com/gitmpr/ssh-certs-PoC/tree/5_gssapi) | GSSAPI/Kerberos SSH auth - a non-certificate trust model. Ends with Further Reading & Resources. |
 
-up next: [**1_revocation**](https://github.com/gitmpr/ssh-certs-PoC/tree/1_revocation)
+up next: [**1_raw_keys**](https://github.com/gitmpr/ssh-certs-PoC/tree/1_raw_keys)
